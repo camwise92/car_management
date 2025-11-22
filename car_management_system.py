@@ -1,8 +1,7 @@
 """
 File: car_management_system.py
 Description: A menu-based interface to add, delete, and find car details
-Date created: 15/01/2025
-Last modified: 29/01/2025
+Last modified: 22/11/2025
 Version: 1.1
 
 Contact: cameroncarlisle1992@gmail.com
