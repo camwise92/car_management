@@ -1,150 +1,189 @@
 """
 File: car_management_system.py
-Description: A menu-based interface to add, delete, and find car details
+Description: A menu-based Car Management System with database
 Last modified: 22/11/2025
-Version: 1.1
+Version: 2.1
 
 Contact: cameroncarlisle1992@gmail.com
 """
 
-import re  # used for regex
-import sys  # used to exit program with message
+import re
+import sys
+import json
+import os
 
-car_details = {} # Empty dictionary to add car details to.
+DATA_FILE = "car_data.json"
 
-def main():
-    """
-    Display menu and execute functions based on menu selection.
-    """
-    while True:
-        menu()
-        
-        menu_selection = input("Please select option from menu: ").strip()
-        if menu_selection == "1":
-            add_car()
-        elif menu_selection == "2":
-            delete_car()
-        elif menu_selection == "3":
-            find_car()
-        elif menu_selection == "4":
-            # Program exits with message
-            sys.exit("Exiting Program.")
+class CarDatabase:
+    """Class to manage car details with persistence."""
+
+    def __init__(self, data_file=DATA_FILE):
+        self.data_file = data_file
+        self.cars = {}
+
+# Persistence Methods
+    def load_database(self):
+        """Load car data from JSON file or return empty dict."""
+        if os.path.exists(self.data_file):
+            try:
+                with open(self.data_file, "r") as f:
+                    self.cars = json.load(f)
+                    print("Database loaded successfully.\n")
+            except json.JSONDecodeError:
+                print("Warning: Database file is corrupted. Starting new database.")
+                self.cars = {}
         else:
-            # Error message if input is invalid
-            print("Invalid selection. Please choose a valid option.")
+            print("No existing database found. Starting new database.")
+            self.cars = {}
 
-def menu(): 
-    """
-    Displays menu options.
-    """
-    print("\nCar Management System\n")
-    print("1. Add Car Details")
-    print("2. Delete Car Details")
-    print("3. Find Car Details")
-    print("4. Exit Application\n")
+    def create_new_database(self):
+        """Start a fresh empty database, overwriting existing one if present."""
+        self.cars = {}
+        self.save_database()
+        print("New database created.\n")
 
-def add_car():
-    """
-    Add car details to the car_details dictionary.
+    def save_database(self):
+        """Save current car data to JSON file."""
+        with open(self.data_file, "w") as f:
+            json.dump(self.cars, f, indent=4)
 
-    This function prompts the user to input the number of cars to add,
-    and then for each car, it gathers details such as registration number,
-    make, model, and year. Validates inputs and handles duplicates.
-    """
-    valid_reg = r"^[A-Z]{2}[0-9]{2}\s?[A-Z]{3}$"  # RegEx for valid UK license pattern
+# Car Management Methods
+    def add_car(self):
+        valid_reg = r"^[A-Z]{2}[0-9]{2}\s?[A-Z]{3}$"
 
-    while True:
-        # Loop until valid input given (numerical values only)
-        try:
-            num_cars = int(input("How many cars would you like to add? "))
-            break
-        except ValueError:
-            print("Please input numerical value only.")  # Error message if input invalid
-
-    for i in range(num_cars):
-        print(f"\nEnter details for car {i + 1} or press 4 to quit to menu:")
-        
         while True:
-            reg = input("Enter Registration Number: ").upper()
-            if re.match(valid_reg, reg):  # Checks input against valid pattern
+            try:
+                num_cars = int(input("How many cars would you like to add? "))
                 break
-            elif reg == "4":
-                break
-            else:
-                print("Please enter a valid UK registration number or press 4 to quit to menu.")  # Error message if input invalid
-        
-        if reg == "4":
-            break       
-        if reg in car_details:
-            print(f"A car with registration number '{reg}' already exists.")  # If reg already exists, don't log the details
-        else:   
-            make = get_car_detail("Enter Make: ")
-            model = get_car_detail("Enter Model: ")
+            except ValueError:
+                print("Please input numerical value only.")
+
+        for i in range(num_cars):
+            print(f"\nEnter details for car {i + 1} or press 5 to quit to menu:")
+
+            while True:
+                reg = input("Enter Registration Number: ").upper()
+                if reg == "5":
+                    return
+                if re.match(valid_reg, reg):
+                    if reg in self.cars:
+                        print(f"A car with registration '{reg}' already exists.")
+                        continue
+                    break
+                else:
+                    print("Invalid UK registration. Try again or press 5.")
+
+            make = self.get_car_detail("Enter Make: ")
+            model = self.get_car_detail("Enter Model: ")
 
             while True:
                 year = input("Enter Year: ").strip()
-                if year.isdigit() and len(year) == 4:  # Check if it's a 4-digit year
+                if year.isdigit() and len(year) == 4:
                     break
-                else:
-                    print("Please enter a valid 4-digit year.")
-            
-            car_details[reg] = {"make": make, "model": model, "year": year}
-            print("Car details added successfully.")
-            print(car_details)
+                print("Please enter a valid 4-digit year.")
 
-def delete_car():
-    """
-    Delete car details from the car_details dictionary.
+            self.cars[reg] = {"make": make, "model": model, "year": year}
+            self.save_database()
+            print("\nCar added successfully!\n")
+            self.list_all_cars()
 
-    This function prompts the user to input the registration number of the car 
-    to be deleted. It checks if the registration number exists in the dictionary 
-    and deletes it if found.
-    """
+    def delete_car(self):
+        while True:
+            reg = input("Enter registration to delete or press 5 to quit: ").upper()
+            if reg == "5":
+                return
+            if reg in self.cars:
+                del self.cars[reg]
+                self.save_database()
+                print(f"Car '{reg}' deleted successfully.")
+                return
+            else:
+                print("Registration not found. Try again.")
+
+    def find_car(self):
+        while True:
+            reg = input("Enter registration to find or press 5 to quit: ").upper()
+            if reg == "5":
+                return
+            if reg in self.cars:
+                car = self.cars[reg]
+                print("\n--- Car Details ---")
+                print(f"Registration: {reg}")
+                print(f"Make: {car['make']}")
+                print(f"Model: {car['model']}")
+                print(f"Year: {car['year']}")
+                print("------------------\n")
+                return
+            else:
+                print("Car not found. Try again.")
+
+    def list_all_cars(self):
+        if not self.cars:
+            print("\nDatabase is currently empty.\n")
+            return
+        print("\n--- All Cars in Database ---")
+        for reg, car in self.cars.items():
+            print(f"Registration: {reg}")
+            print(f"Make: {car['make']}")
+            print(f"Model: {car['model']}")
+            print(f"Year: {car['year']}")
+            print("-" * 30)
+        print()
+
+    @staticmethod
+    def get_car_detail(prompt):
+        while True:
+            detail = input(prompt).strip().capitalize()
+            if detail:
+                return detail
+            print("Field cannot be empty.")
+
+# Menu / Program Flow
+def main():
+    db = CarDatabase()
+
+    # Startup choice: load existing or create new
+    if os.path.exists(DATA_FILE):
+        while True:
+            choice = input(
+                "Database exists. Load existing database or create new? (L/N): "
+            ).strip().upper()
+            if choice == "L":
+                db.load_database()
+                break
+            elif choice == "N":
+                db.create_new_database()
+                break
+            else:
+                print("Please enter 'L' to load or 'N' to create new database.")
+    else:
+        db.create_new_database()
+
+    # Main menu loop
     while True:
-        reg = input("Please enter registration of car you wish to delete from database: ").upper()    
-        if reg in car_details:
-            del car_details[reg]
-            print(f"Car: {reg}, successfully deleted.")
-            break
-        elif reg == "4":
-            break
+        print("\nCar Management System\n")
+        print("1. Add Car Details")
+        print("2. Delete Car Details")
+        print("3. Find Car Details")
+        print("4. Show All Car Details")
+        print("5. Exit\n")
+
+        choice = input("Please select an option: ").strip()
+
+        if choice == "1":
+            db.add_car()
+        elif choice == "2":
+            db.delete_car()
+        elif choice == "3":
+            db.find_car()
+        elif choice == "4":
+            db.list_all_cars()
+        elif choice == "5":
+            print("Exiting program...")
+            db.save_database()
+            sys.exit()
         else:
-            print("Registration not in database.")
-
-def find_car():
-    """
-    Find and display car details from the car_details dictionary.
-
-    This function prompts the user to input the registration number of the car 
-    to be found. It checks if the registration number exists in the dictionary 
-    and displays the details if found.
-    """
-    while True:
-        car = input("Please input registration of car or press 4 to quit to menu: ").upper()
-        if car in car_details:
-            print(f"\nRegistration: {car}\nMake: {car_details[car]['make']}\nModel: {car_details[car]['model']}\nYear: {car_details[car]['year']}\n")
-            break
-        elif car == "4":
-            break
-        else:
-            print("Car not found. Please try again or enter valid registration.\n")
-
-def get_car_detail(prompt):
-    """
-    Helper function to get car details (Make, Model) and ensure non-empty input.
-
-    Parameters:
-    prompt (str): The prompt to display to the user.
-
-    Returns:
-    str: The user's input, stripped of leading/trailing whitespace and capitalized.
-    """
-    while True:
-        detail = input(prompt).strip().capitalize()
-        if detail:
-            return detail
-        else:
-            print("This field cannot be empty. Please enter a valid detail.")
+            print("Invalid selection. Please choose a valid option.")
 
 if __name__ == "__main__":
     main()
